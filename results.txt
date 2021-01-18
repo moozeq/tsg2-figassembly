@@ -1,0 +1,38 @@
+./evaluate.sh super1.fasta                                                                                             ✔  26s  training Py  7.46G RAM  00:08:20
+1 reads; of these:
+  1 (100.00%) were unpaired; of these:
+    0 (0.00%) aligned 0 times
+    0 (0.00%) aligned exactly 1 time
+    1 (100.00%) aligned >1 times
+100.00% overall alignment rate
+Pokrycie referencji: 0.279125
+Pokrycie odczytów: 0.223188405797
+Ocena identyczności: 0.5
+Ocena rozdrobnienia: 0.773976031629
+Łączna ocena: 0.0241083718939
+
+./evaluate.sh super2.fasta                                                                                             ✔  14s  training Py  6.35G RAM  00:04:39
+1 reads; of these:
+  1 (100.00%) were unpaired; of these:
+    0 (0.00%) aligned 0 times
+    0 (0.00%) aligned exactly 1 time
+    1 (100.00%) aligned >1 times
+100.00% overall alignment rate
+Pokrycie referencji: 0.459875
+Pokrycie odczytów: 0.328482142857
+Ocena identyczności: 0.5
+Ocena rozdrobnienia: 0.698970004336
+Łączna ocena: 0.0527934579601
+
+./evaluate.sh super3.fasta                                                                                             ✔  14s  training Py  6.05G RAM  00:07:40
+1 reads; of these:
+  1 (100.00%) were unpaired; of these:
+    0 (0.00%) aligned 0 times
+    0 (0.00%) aligned exactly 1 time
+    1 (100.00%) aligned >1 times
+100.00% overall alignment rate
+Pokrycie referencji: 0.152375
+Pokrycie odczytów: 0.0671958546938
+Ocena identyczności: 0.5
+Ocena rozdrobnienia: 0.827087475347
+Łączna ocena: 0.00423426124509

@@ -1,65 +1,9 @@
+#!/usr/bin/env python3
+
 import argparse
 import itertools
-from typing import List
-
-
-def overlap(a, b, min_length=3):
-    """ Return length of longest suffix of 'a' matching
-        a prefix of 'b' that is at least 'min_length'
-        characters long.  If no such overlap exists,
-        return 0. """
-    start = 0  # start all the way at the left
-    while True:
-        start = a.find(b[:min_length], start)  # look for b's suffx in a
-        if start == -1:  # no more occurrences to right
-            return 0
-        # found occurrence; check for full suffix/prefix match
-        if b.startswith(a[start:]):
-            return len(a) - start
-        start += 1  # move just past previous match
-
-
-def scs(ss):
-    """ Returns shortest common superstring of given
-        strings, which must be the same length """
-    shortest_sup = None
-    for ssperm in itertools.permutations(ss):
-        sup = ssperm[0]  # superstring starts as first string
-        for i in range(len(ss) - 1):
-            # overlap adjacent strings A and B in the permutation
-            olen = overlap(ssperm[i], ssperm[i + 1], min_length=1)
-            # add non-overlapping portion of B to superstring
-            sup += ssperm[i + 1][olen:]
-        if shortest_sup is None or len(sup) < len(shortest_sup):
-            shortest_sup = sup  # found shorter superstring
-    return shortest_sup  # return shortest
-
-
-def pick_maximal_overlap(reads, k):
-    """ Return a pair of reads from the list with a
-        maximal suffix/prefix overlap >= k.  Returns
-        overlap length 0 if there are no such overlaps."""
-    reada, readb = None, None
-    best_olen = 0
-    for a, b in itertools.permutations(reads, 2):
-        olen = overlap(a, b, min_length=k)
-        if olen > best_olen:
-            reada, readb = a, b
-            best_olen = olen
-    return reada, readb, best_olen
-
-
-def greedy_scs(reads, k):
-    """ Greedy shortest-common-superstring merge.
-        Repeat until no edges (overlaps of length >= k)
-        remain. """
-    read_a, read_b, olen = pick_maximal_overlap(reads, k)
-    while olen > 0:
-        reads.remove(read_a)
-        reads.remove(read_b)
-        reads.append(read_a + read_b[-(len(read_b) - olen):])
-        read_a, read_b, olen = pick_maximal_overlap(reads, k)
-    return ''.join(reads)
+from pprint import pprint
+from typing import List, Dict
 
 
 def read_records(filename: str):
@@ -77,84 +21,108 @@ def read_sequences(filename: str) -> List[str]:
     return seqs
 
 
+class Seq:
+    seq_id = 0
+
+    def __init__(self, seq: str):
+        self.seq = seq
+        self.id = Seq.seq_id
+        Seq.seq_id += 1
+
+    def _single_longest_prefix(self, sec_seq: 'Seq'):
+        s1 = self.seq
+        s2 = sec_seq.seq
+
+        i = s1.find(s2[0])
+        while i >= 0:
+            if s2.startswith(s1[i:]):
+                return s1[i:]
+
+            i = s1.find(s2[0], i + 1)
+
+        return ''
+
+    def _single_longest_suffix(self, sec_seq: 'Seq'):
+        s1 = sec_seq.seq
+        s2 = self.seq
+
+        i = s1.find(s2[0])
+        while i >= 0:
+            if s2.startswith(s1[i:]):
+                return s1[i:]
+
+            i = s1.find(s2[0], i + 1)
+
+        return ''
+
+    def longest_fix(self, seqs: Dict[int, 'Seq']) -> (int, str, str):
+        lp = ''
+        lp_seq_id = -1
+        fix = ''
+
+        for seq_id, seq in seqs.items():
+            slp = self._single_longest_prefix(seq)
+            if len(slp) > len(lp):
+                lp = slp
+                lp_seq_id = seq_id
+                fix = 'prefix'
+
+        for seq_id, seq in seqs.items():
+            slp = self._single_longest_suffix(seq)
+            if len(slp) > len(lp):
+                lp = slp
+                lp_seq_id = seq_id
+                fix = 'suffix'
+
+        return lp_seq_id, lp, fix
+
+    def merged_best_seq(self, seqs: Dict[int, 'Seq']) -> 'Seq':
+        best_seq_id, longest_prefix, fix = self.longest_fix(seqs)
+        if best_seq_id != -1:
+            best_seq = seqs[best_seq_id]
+            self.id = best_seq_id
+
+        if fix == 'prefix':
+            self.seq = f'{self.seq}{best_seq.seq[len(longest_prefix):]}'
+        elif fix == 'suffix':
+            self.seq = f'{best_seq.seq[:len(longest_prefix)]}{self.seq}'
+        else:
+            print(f'[*] Skip seq with length = {len(self.seq)}')
+
+        return self
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Assembly sequences')
     parser.add_argument('file', type=str, help='fasta file with reads')
-    parser.add_argument('-n', '--num', type=int, default=20, help='k for greedy scs')
+    parser.add_argument('-n', '--num', type=int, default=10, help='k for greedy scs')
+    parser.add_argument('-o', '--output', type=str, help='output fasta')
     args = parser.parse_args()
 
-    seqs = read_sequences(args.file)
-    print(len(gscs := greedy_scs(seqs, args.num)))
+    seqs = [Seq(s) for s in read_sequences(args.file)]
+    seqs = {s.id: s for s in seqs}
 
-    with open(f'training/r{args.num}.fasta', 'w') as rf:
-        rf.write('>aaa\n')
-        rf.write(gscs)
+    run = 1
+    while len(seqs) > 1:
+        p_seqs_len = len(seqs)
+        seqs_keys = list(seqs.keys())
+        print(f'[*] Run = {run}; keys = {len(seqs_keys)}')
+        for i, s_id in enumerate(seqs_keys):
+            if i & 0xf == 0:
+                print(f'[*] Iteration = {i}')
+            if s_id in seqs:
+                start_seq_obj: Seq = seqs.pop(s_id)
+                seq_obj: Seq = start_seq_obj.merged_best_seq(seqs)
+                seqs[seq_obj.id] = seq_obj
+        run += 1
+        if p_seqs_len == len(seqs):  # nothing changed, merge all left sequences
+            break
 
+    super_seq = ''.join(s.seq for s in seqs.values())
+    print(f'[+] Done, super sequence length = {len(super_seq)}')
 
-"""
-Results:
+    filename = args.output if args.output else f'training/super.fasta'
 
-=========================================
-r5.fasta:
-
-1 reads; of these:
-  1 (100.00%) were unpaired; of these:
-    0 (0.00%) aligned 0 times
-    0 (0.00%) aligned exactly 1 time
-    1 (100.00%) aligned >1 times
-100.00% overall alignment rate
-Pokrycie referencji: 0.371875
-Pokrycie odczytów: 0.0514999913445
-Ocena identyczności: 0.5
-Ocena rozdrobnienia: 0.732486760359
-Łączna ocena: 0.00701413180687
-=========================================
-
-=========================================
-r10.fasta:
-
-1 reads; of these:
-  1 (100.00%) were unpaired; of these:
-    0 (0.00%) aligned 0 times
-    0 (0.00%) aligned exactly 1 time
-    1 (100.00%) aligned >1 times
-100.00% overall alignment rate
-Pokrycie referencji: 0.445375
-Pokrycie odczytów: 0.0601522799791
-Ocena identyczności: 0.5
-Ocena rozdrobnienia: 0.732486760359
-Łączna ocena: 0.00981177797392
-=========================================
-
-=========================================
-r15.fasta:
-
-1 reads; of these:
-  1 (100.00%) were unpaired; of these:
-    0 (0.00%) aligned 0 times
-    0 (0.00%) aligned exactly 1 time
-    1 (100.00%) aligned >1 times
-100.00% overall alignment rate
-Pokrycie referencji: 0.093375
-Pokrycie odczytów: 0.0124928922634
-Ocena identyczności: 0.5
-Ocena rozdrobnienia: 1.0
-Łączna ocena: 0.000583261907549
-=========================================
-
-=========================================
-r20.fasta:
-
-1 reads; of these:
-  1 (100.00%) were unpaired; of these:
-    0 (0.00%) aligned 0 times
-    0 (0.00%) aligned exactly 1 time
-    1 (100.00%) aligned >1 times
-100.00% overall alignment rate
-Pokrycie referencji: 0.1585
-Pokrycie odczytów: 0.0209375670811
-Ocena identyczności: 0.5
-Ocena rozdrobnienia: 0.898244401704
-Łączna ocena: 0.00149045890396
-=========================================
-"""
+    with open(filename, 'w') as rf:
+        rf.write('>a\n')
+        rf.write(super_seq)
