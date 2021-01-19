@@ -5,11 +5,11 @@
     0 (0.00%) aligned exactly 1 time
     1 (100.00%) aligned >1 times
 100.00% overall alignment rate
-Pokrycie referencji: 0.220375
-Pokrycie odczytów: 0.619901547117
-Ocena identyczności: 0.5
-Ocena rozdrobnienia: 0.898244401704
-Łączna ocena: 0.0613549447038
+Pokrycie referencji: 0.293
+Pokrycie odczytów: 0.568793982043
+Ocena identyczności: 0.81228668942
+Ocena rozdrobnienia: 0.827087475347
+Łączna ocena: 0.111965286107
 
 
 ./evaluate.sh super2.fasta
@@ -19,11 +19,11 @@ Ocena rozdrobnienia: 0.898244401704
     0 (0.00%) aligned exactly 1 time
     1 (100.00%) aligned >1 times
 100.00% overall alignment rate
-Pokrycie referencji: 0.20975
-Pokrycie odczytów: 0.583652173913
+Pokrycie referencji: 0.528625
+Pokrycie odczytów: 0.677073326929
 Ocena identyczności: 0.5
-Ocena rozdrobnienia: 0.773976031629
-Łączna ocena: 0.0473754767096
+Ocena rozdrobnienia: 0.647685462378
+Łączna ocena: 0.115909106213
 
 
 ./evaluate.sh super3.fasta
@@ -33,8 +33,8 @@ Ocena rozdrobnienia: 0.773976031629
     0 (0.00%) aligned exactly 1 time
     1 (100.00%) aligned >1 times
 100.00% overall alignment rate
-Pokrycie referencji: 0.275125
-Pokrycie odczytów: 0.177858585859
+Pokrycie referencji: 0.421
+Pokrycie odczytów: 0.410531448074
 Ocena identyczności: 0.5
-Ocena rozdrobnienia: 0.732486760359
-Łączna ocena: 0.0179215131029
+Ocena rozdrobnienia: 0.773976031629
+Łączna ocena: 0.0668845859688
