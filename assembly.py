@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import itertools
-from pprint import pprint
 from typing import List, Dict
 
 
@@ -21,6 +19,48 @@ def read_sequences(filename: str) -> List[str]:
     return seqs
 
 
+def sim_score(s1: str, s2: str) -> float:
+    score = 0.0
+    for l1, l2 in zip(s1, s2):
+        if l1 == l2:
+            score += 1.0
+    return score / len(s1)
+
+
+def exact(s1: str, s2: str) -> float:
+    if s1 == s2:
+        return 1.0
+    else:
+        return 0.0
+
+
+def check_exact_longest(s1: str, s2: str) -> str:
+    i = s1.find(s2[0])
+    while i >= 0:
+        s1_post = s1[i:]
+        s2_pre = s2[:len(s1_post)]
+        if s1_post == s2_pre:
+            return s1_post
+
+        i = s1.find(s2[0], i + 1)
+
+    return ''
+
+
+def threshold_len_exact(len1: int, len2: int) -> bool:
+    return (
+        abs(len1 - len2) < 4 and
+        len2 > 0
+    )
+# max_exact = check_exact_longest(s1, s2)
+# if threshold_len_exact(len(s1_post), len(max_exact)):
+#     return max_exact
+
+
+SIM_SCORE = 1.0
+SIM_FUNC = exact
+
+
 class Seq:
     seq_id = 0
 
@@ -35,8 +75,10 @@ class Seq:
 
         i = s1.find(s2[0])
         while i >= 0:
-            if s2.startswith(s1[i:]):
-                return s1[i:]
+            s1_post = s1[i:]
+            s2_pre = s2[:len(s1_post)]
+            if SIM_FUNC(s2_pre, s1_post) >= SIM_SCORE:
+                return s1_post
 
             i = s1.find(s2[0], i + 1)
 
@@ -48,8 +90,10 @@ class Seq:
 
         i = s1.find(s2[0])
         while i >= 0:
-            if s2.startswith(s1[i:]):
-                return s1[i:]
+            s1_post = s1[i:]
+            s2_pre = s2[:len(s1_post)]
+            if SIM_FUNC(s2_pre, s1_post) >= SIM_SCORE:
+                return s1_post
 
             i = s1.find(s2[0], i + 1)
 
@@ -95,9 +139,13 @@ class Seq:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Assembly sequences')
     parser.add_argument('file', type=str, help='fasta file with reads')
-    parser.add_argument('-n', '--num', type=int, default=10, help='k for greedy scs')
+    parser.add_argument('-s', '--score', type=float, default=1.0, help='similarity score')
     parser.add_argument('-o', '--output', type=str, help='output fasta')
     args = parser.parse_args()
+
+    # if args.score < 1.0:
+    #     SIM_SCORE = args.score
+    #     SIM_FUNC = sim_score
 
     seqs = [Seq(s) for s in read_sequences(args.file)]
     seqs = {s.id: s for s in seqs}
@@ -109,12 +157,15 @@ if __name__ == '__main__':
         print(f'[*] Run = {run}; keys = {len(seqs_keys)}')
         for i, s_id in enumerate(seqs_keys):
             if i & 0xf == 0:
-                print(f'[*] Iteration = {i}')
+                print(f'[*] Done keys = {i}')
             if s_id in seqs:
                 start_seq_obj: Seq = seqs.pop(s_id)
                 seq_obj: Seq = start_seq_obj.merged_best_seq(seqs)
                 seqs[seq_obj.id] = seq_obj
         run += 1
+
+        SIM_SCORE *= 0.8
+        SIM_FUNC = sim_score
         if p_seqs_len == len(seqs):  # nothing changed, merge all left sequences
             break
 
