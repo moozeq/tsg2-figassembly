@@ -1,22 +1,16 @@
 #!/usr/bin/env python3
 
 import argparse
-from typing import List, Dict
+import logging
+from typing import Dict
+from itertools import groupby
 
 
-def read_records(filename: str):
-    """Get records from file as Seqs objects"""
-    from Bio import SeqIO
-    print(f'[*] Reading sequences from {filename}')
-    seqs = [record for record in SeqIO.parse(filename, 'fasta')]
-    print(f'[+] Read {len(seqs)} sequences')
-    return seqs
-
-
-def read_sequences(filename: str) -> List[str]:
-    """Get sequences from file as list of strings"""
-    seqs = [str(record.seq) for record in read_records(filename)]
-    return seqs
+def read_fasta_seqs_iter(fasta_name: str) -> str:
+    with open(fasta_name) as fh:
+        fasta_iter = (g for _, g in groupby(fh, lambda line: line[0] == '>'))
+        for _ in fasta_iter:
+            yield ''.join(s.strip() for s in next(fasta_iter))
 
 
 def sim_score(s1: str, s2: str) -> float:
@@ -31,10 +25,11 @@ def sim_exact(s1: str, s2: str) -> float:
     return 1.0 if s1 == s2 else 0.0
 
 
-SIM_SCORE = 1.0
-SIM_FUNC = sim_exact
-START_SEQ_LEN = 0
-FIX_LONG = 4
+"""Assembly algorithm parameters"""
+SIM_SCORE = 1.0         # similarity threshold score
+SIM_FACTOR = 0.8        # factor which SIM_SCORE is multiplied by in each next run
+SIM_FUNC = sim_exact    # function used for comparing strings
+FIX_LONG = 0.25         # prefix/suffix minimal length, will be multiplied after parsing fasta
 
 
 class Seq:
@@ -82,13 +77,13 @@ class Seq:
 
     def merged_best_seq(self, seqs: Dict[int, 'Seq']) -> 'Seq':
         best_seq_id, longest_fix, fix = Seq._longest_fix(self, seqs)
-        if len(longest_fix) < START_SEQ_LEN // FIX_LONG or best_seq_id < 0:
+        if len(longest_fix) < FIX_LONG or best_seq_id < 0:
             return self
 
         best_seq = seqs[best_seq_id]
         self.id = best_seq_id
 
-        print(f'Longest fix: {fix}, {len(longest_fix)}')
+        logging.debug(f'Longest fix: {fix}, {len(longest_fix)}')
         if fix == 'prefix':
             self.seq = f'{self.seq}{best_seq.seq[len(longest_fix):]}'
         elif fix == 'suffix':
@@ -103,28 +98,32 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Assembly sequences')
     parser.add_argument('file', type=str, help='fasta file with reads')
     parser.add_argument('-s', '--score', type=float, default=1.0, help='similarity score')
+    parser.add_argument('-d', '--dbg', action='store_true', help='show debug prints')
     parser.add_argument('-o', '--output', type=str, help='output fasta')
     args = parser.parse_args()
 
-    seqs = [Seq(s) for s in read_sequences(args.file)]
-    START_SEQ_LEN = len(seqs[0].seq)
+    if args.dbg:
+        logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
+
+    seqs = [Seq(s) for s in read_fasta_seqs_iter(args.file)]
+    FIX_LONG *= len(seqs[0].seq)
     seqs = {s.id: s for s in seqs}
 
-    run = 1
+    iteration = 1
     while len(seqs) > 1:
         seqs_keys = list(seqs.keys())
-        print(f'[*] Run = {run}; keys = {len(seqs_keys)}')
+        print(f'[*] Iteration = {iteration}; keys = {len(seqs_keys)}; SIM_SCORE = {SIM_SCORE}')
         for k, s_id in enumerate(seqs_keys):
             if k & 0xff == 0:
-                print(f'[*] Done keys = {k}, seqs left = {len(seqs)}')
-                pass
+                logging.debug(f'[*] Done keys = {k}, seqs left = {len(seqs)}')
             if s_id in seqs:
                 start_seq_obj: Seq = seqs.pop(s_id)
                 seq_obj = start_seq_obj.merged_best_seq(seqs)
                 seqs[seq_obj.id] = seq_obj
-        run += 1
-        SIM_SCORE *= 0.8
+        SIM_SCORE *= SIM_FACTOR
         SIM_FUNC = sim_score
+        iteration += 1
 
     super_seq = ''.join(s.seq for s in seqs.values())
     print(f'[+] Done, super sequence length = {len(super_seq)}')
