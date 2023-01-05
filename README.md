@@ -2,7 +2,7 @@
 
 ## Description
 
-Fast-iterative-greedy algorithm for assembling FASTA reads into
+**F**ast-**I**terative-**G**reedy **A**ssembly algorithm for turning multiple FASTA reads into
 one super sequence.
 
 ## Usage
